@@ -1,0 +1,5 @@
+.idea/
+*.iml
+libs*
+out/
+remote*
