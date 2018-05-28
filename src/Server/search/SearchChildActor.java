@@ -1,14 +1,11 @@
 package Server.search;
 
 import akka.actor.AbstractActor;
-import akka.actor.SupervisorStrategy;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import messages.Request;
 import messages.Response;
-
 import java.io.*;
-import java.util.Optional;
 
 public class SearchChildActor extends AbstractActor {
     private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -27,13 +24,11 @@ public class SearchChildActor extends AbstractActor {
             log.info("Got request");
             log.info(r.toString());
             log.info("-------------------------------------------------------");
-
             String price = read(r);
             Response response = new Response();
             response.setPrice(price);
             response.setTitle(r.getTitle());
             response.setId(r.getId());
-            //getSender().tell(response, getContext().getParent());
             getContext().getParent().tell(response, getSender());
         }).matchAny(o -> {
             log.info("-------------------------------------------------------");

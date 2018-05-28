@@ -10,12 +10,9 @@ import akka.japi.pf.DeciderBuilder;
 import messages.Request;
 import messages.Response;
 import scala.concurrent.duration.Duration;
-
 import java.util.HashMap;
 import java.util.Map;
-
 import static akka.actor.SupervisorStrategy.restart;
-import static akka.actor.SupervisorStrategy.stop;
 
 public class SearchActor extends AbstractActor {
     private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -32,7 +29,8 @@ public class SearchActor extends AbstractActor {
         }).match(Response.class, r -> {
             log.info("GOT RESPONSE!");
             if(handleResponse(r)) {
-                getSender().tell(responseMap.get(r.getId()), getContext().getParent());
+                getSender().tell(responseMap.get(r.getId()), getSelf());
+                responseMap.remove(r.getId());
             }
         }).matchAny(o -> {
             log.info("-------------------------------------------------------");

@@ -15,12 +15,26 @@ import java.io.InputStreamReader;
 
 public class Client {
     public static void main(String[] args) {
-        File configFile = new File("client.conf");
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+
+        System.out.println("Config 1/2 ?");
+        String configFileName = "client.config";
+        try {
+            String num = br.readLine();
+            if(num.equals("1")) {
+                configFileName = "client.conf";
+            } else {
+                configFileName = "client2.conf";
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        File configFile = new File(configFileName);
         Config config = ConfigFactory.parseFile(configFile);
         final ActorSystem system = ActorSystem.create("client_system", config);
         final ActorRef actorRef = system.actorOf(Props.create(ClientActor.class), "client");
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         while (true) {
             String line;
 
