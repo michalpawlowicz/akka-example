@@ -1,11 +1,9 @@
 package Server.search;
 
-import akka.actor.AbstractActor;
-import akka.actor.OneForOneStrategy;
-import akka.actor.Props;
-import akka.actor.SupervisorStrategy;
+import akka.actor.*;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import akka.japi.Pair;
 import akka.japi.pf.DeciderBuilder;
 import messages.Request;
 import messages.Response;
@@ -20,15 +18,20 @@ public class SearchActor extends AbstractActor {
     private final String DB2 = "db/2";
 
     private Map<Integer, Response> responseMap = new HashMap<>();
+    private Map<ActorRef, ActorRef> actorRefMap = new HashMap<>();
 
     @Override
     public Receive createReceive() {
         return receiveBuilder().match(Request.class, r -> {
-            context().child("searchChild1").get().forward(r, context());
-            context().child("searchChild2").get().forward(r, context());
+            ActorRef first = context().actorOf(Props.create(SearchChildActor.class, DB1));
+            first.forward(r, context());
+            ActorRef second = context().actorOf(Props.create(SearchChildActor.class, DB2));
+            second.forward(r, context());
+            actorRefMap.put(first, second);
+            actorRefMap.put(second, first);
         }).match(Response.class, r -> {
             log.info("GOT RESPONSE!");
-            if(handleResponse(r)) {
+            if(handleResponse(r, getSelf())) {
                 getSender().tell(responseMap.get(r.getId()), getSelf());
                 responseMap.remove(r.getId());
             }
@@ -40,12 +43,20 @@ public class SearchActor extends AbstractActor {
 
     }
 
-    private boolean handleResponse(Response res) {
+    private boolean handleResponse(Response res, ActorRef ref) {
         if (responseMap.containsKey(res.getId())) {
             Response r = responseMap.get(res.getId());
             if (!r.getPrice().isPresent()) {
                 responseMap.remove(res.getId());
                 responseMap.put(res.getId(), res);
+                if(actorRefMap.containsKey(ref)) {
+                    ActorRef sec = actorRefMap.get(ref);
+                    context().stop(actorRefMap.get(ref));
+                    actorRefMap.remove(ref);
+                    if(actorRefMap.containsKey(sec)) {
+                        actorRefMap.remove(sec);
+                    }
+                }
             }
             return true;
         } else {
@@ -62,17 +73,5 @@ public class SearchActor extends AbstractActor {
     @Override
     public SupervisorStrategy supervisorStrategy() {
         return strategy;
-    }
-
-    @Override
-    public void preStart() throws Exception {
-        super.preStart();
-        context().actorOf(Props.create(SearchChildActor.class, DB1), "searchChild1");
-        context().actorOf(Props.create(SearchChildActor.class, DB2), "searchChild2");
-    }
-
-    @Override
-    public void postStop() throws Exception {
-        super.postStop();
     }
 }

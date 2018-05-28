@@ -2,16 +2,12 @@ package Server.order;
 
 import Server.FileSynchronizer;
 import akka.actor.AbstractActor;
-import akka.actor.OneForOneStrategy;
-import akka.actor.SupervisorStrategy;
+import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import akka.japi.pf.DeciderBuilder;
 import messages.OrderResponse;
 import messages.Request;
-import scala.concurrent.duration.Duration;
 
-import static akka.actor.SupervisorStrategy.resume;
 
 public class OrderActor extends AbstractActor {
     private final FileSynchronizer fileSynchronizer;
@@ -25,11 +21,9 @@ public class OrderActor extends AbstractActor {
     public Receive createReceive() {
         return receiveBuilder()
                 .match(Request.class, r -> {
-                    OrderResponse response = new OrderResponse();
-                    if(save(r.getTitle())) {
-                        response.setStatus(OrderResponse.Type.OK);
-                    }
-                    getSender().tell(response, getSelf());
+                    context().actorOf(Props.create(IOActor.class, fileSynchronizer)).forward(r, context());
+                }).match(OrderResponse.class, r -> {
+                    getSender().tell(r, getSelf());
                 }).matchAny(o -> {
                     log.error("Invalid request, dropping ..");
                 }).build();
